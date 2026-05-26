@@ -1,0 +1,849 @@
+# Introduction to spatial and molecular epidemiology (BING-F432)
+# Bousfanj Mohamed
+# Chaouche Maxime
+
+
+
+# ===== A. Cartographie de risque =====
+
+# Propagation d'un nouvel arbovirus
+
+# ===== 0. Génération des packages =====
+
+if (!require(sf)) install.packages("sf")
+if (!require(sp)) install.packages("sp")                   
+if (!require(raster)) install.packages("raster")
+if (!require(colorspace)) install.packages("colorspace")
+if (!require(MetBrewer)) install.packages("MetBrewer")
+if (!require(dismo)) install.packages("dismo")
+if (!require(gbm)) install.packages("gbm")
+if (!require(ncf)) install.packages("ncf")
+if (!require(RColorBrewer)) install.packages("RColorBrewer")
+if (!require(blockCV)) install.packages("blockCV")
+if (!require(readr)) install.packages("readr")
+library(sp);library(sf);library(blockCV);library(ncf);library(dismo);library(gbm);                                        
+library(raster); library(colorspace); library(MetBrewer); library(RColorBrewer);
+library(readr) 
+
+
+
+
+
+# ===== 1. Modélisation de la niche écologique =====
+
+# ===== 1.1 Charger les données de longitude et latitude =====
+tab_1 = read.csv("Arbovirus_risk_mapping_simulated_dataset_2-1.csv", head=T)
+
+
+# ===== 1.2 Charger le fichier SIG =====
+europe = shapefile("Coasts_study_area_shapefile/Coasts_study_area_shapefile.shp")
+
+
+# ===== 1.3 Modélisation de la carte =====
+par(mar = c(0, 0, 0, 0), xaxs = "i", yaxs = "i")
+
+plot(europe,
+     col = "orange",
+     border = "gray30",
+     bg = "lightblue",
+     xlim = c(-10, 30),
+     ylim = c(42, 45),
+     asp = 1
+)
+
+
+
+for (i in nrow(tab_1):1) {
+  
+  points(tab_1[i, c("longitude","latitude")],pch=12, cex=0.4, col="red")
+  
+  points(tab_1[i, c("longitude","latitude")],pch=1, cex=0.4, lwd=0.8, col="gray30")
+}
+
+
+
+
+# ===== 2. Analyse des facteurs environnementaux associés au risque de circulation locale du virus =====
+
+# ===== 2.1. Création de la liste des variables environnementales =====
+envVariableNames = c("precipitation_inFall","precipitation_spring","precipitation_summer",
+                     "precipitation_winter","primary_forest_areas",
+                     "primary_non_forest_areas","secondary_forest_areas",
+                     "secondary_non_forest_areas","croplands_all_categories",
+                     "managed_pasture_and_rangeland","human_pop_density_log10",
+                     "relative_humidity_inFall","relative_humidity_spring","relative_humidity_summer","relative_humidity_winter",
+                     "temperature_inFall","temperature_spring","temperature_summer","temperature_winter")
+envVariables = list()
+for (i in 1:length(envVariableNames)) {
+  fileName = paste0("Environmental_raster_files/Raster_",envVariableNames[i],".asc")
+  envVariables[[i]] = raster(fileName, overwrite=T)
+  names(envVariables[[i]]) = envVariableNames[i]
+}
+
+
+# ===== 2.2 Modélisation des variables environnementales =====
+par(mfrow=c(1,4), oma=c(0,0,1.5,0), mar=c(0.75,0,0,0), lwd=0.2,
+    col="gray30", col.axis="gray30", fg="gray30")
+
+# ===== 2.2.1 Précipitations =====
+cols = colorRampPalette(brewer.pal(9,"YlGnBu"))(100)
+plot(envVariables[[1]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Precipitation in Fall", side=3, line=-2, cex=1, col="gray30")
+mtext(expression("[kg/m"^2*"/day]"), side=3, line=-3.8, cex=1, col="gray30")
+plot(envVariables[[1]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.05,0.08), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+cols = colorRampPalette(brewer.pal(9,"YlGnBu"))(100)
+plot(envVariables[[2]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Precipitation in Spring", side=3, line=-2, cex=1, col="gray30")
+mtext(expression("[kg/m"^2*"/day]"), side=3, line=-3.8, cex=1, col="gray30")
+plot(envVariables[[2]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.05,0.08), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+cols = colorRampPalette(brewer.pal(9,"YlGnBu"))(100)
+plot(envVariables[[3]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Precipitation in Summer", side=3, line=-2, cex=1, col="gray30")
+mtext(expression("[kg/m"^2*"/day])"), side=3, line=-3.8, cex=1, col="gray30")
+plot(envVariables[[3]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.05,0.08), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+cols = colorRampPalette(brewer.pal(9,"YlGnBu"))(100)
+plot(envVariables[[4]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Precipitation in Winter", side=3, line=-2, cex=1, col="gray30")
+mtext(expression("[kg/m"^2*"/day]"), side=3, line=-3.8, cex=1, col="gray30")
+plot(envVariables[[4]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.05,0.08), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+
+
+# ===== 2.2.2 Forêts primaires et secondaires =====
+par(mfrow=c(1,2), oma=c(1,0,3,0), mar=c(2,0,0,0), lwd=0.2,
+    col="gray30", col.axis="gray30", fg="gray30")
+
+
+cols = colorRampPalette(c("gray97","chartreuse4"),bias=1)(100)
+plot(envVariables[[5]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Primary forest", side=3, line=0, cex=1, col="gray30")
+plot(envVariables[[5]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.03,0.05), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+cols = colorRampPalette(c("gray97","olivedrab3"),bias=1)(100)
+plot(envVariables[[7]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Secondary forest", side=3, line=0, cex=1, col="gray30")
+plot(envVariables[[7]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.03,0.05), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+
+
+# ===== 2.2.3 Terres cultivées, pâturages, prairies et population humaine =====
+par(mfrow=c(1,3), oma=c(4,0,3,0), mar=c(2,2,0,0), lwd=0.2,
+    col="gray30", col.axis="gray30", fg="gray30")
+
+cols = colorRampPalette(c("gray97","navajowhite4"),bias=1)(100)
+plot(envVariables[[9]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Croplands", side=3, line=-2, cex=1, col="gray30")
+plot(envVariables[[9]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.02,0.04), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+cols = colorRampPalette(c("gray97","burlywood3"),bias=1)(100)
+plot(envVariables[[10]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Pastures and rangeland", side=3, line=-2, cex=1, col="gray30")
+plot(envVariables[[10]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.02,0.04), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+cols = colorRampPalette(brewer.pal(9,"BuPu"))(150)[1:100]
+plot(envVariables[[11]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Human population density", side=3, line=-2, cex=1, col="gray30")
+mtext(expression("(log"[10]*")"), side=3, line=-3.8, cex=1, col="gray30")
+plot(envVariables[[11]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.02,0.04), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+
+# ===== 2.2.4 Humidité =====
+par(mfrow=c(1,4), oma=c(0,0,1.5,0), mar=c(0.75,0,0,0), lwd=0.2,
+    col="gray30", col.axis="gray30", fg="gray30")
+
+cols = colorRampPalette(brewer.pal(9,"BuPu"))(150)[1:100]
+plot(envVariables[[12]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Relative humidity", side=3, line=-2, cex=1, col="gray30")
+mtext("in Fall [%]", side=3, line=-3.8, cex=1, col="gray30")
+plot(envVariables[[12]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.05,0.08), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+
+cols = colorRampPalette(brewer.pal(9,"BuPu"))(150)[1:100]
+plot(envVariables[[13]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Relative humidity", side=3, line=-2, cex=1, col="gray30")
+mtext("in Spring [%]", side=3, line=-3.8, cex=1, col="gray30")
+plot(envVariables[[13]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.05,0.08), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+
+cols = colorRampPalette(brewer.pal(9,"BuPu"))(150)[1:100]
+plot(envVariables[[14]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Relative humidity", side=3, line=-2, cex=1, col="gray30")
+mtext("in Summer [%]", side=3, line=-3.8, cex=1, col="gray30")
+plot(envVariables[[14]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.05,0.08), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+
+cols = colorRampPalette(brewer.pal(9,"BuPu"))(150)[1:100]
+plot(envVariables[[15]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Relative humidity", side=3, line=-2, cex=1, col="gray30")
+mtext("in Winter [%]", side=3, line=-3.8, cex=1, col="gray30")
+plot(envVariables[[15]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.05,0.08), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+
+# ===== 2.2.5 Température =====
+par(mfrow=c(1,4), oma=c(0,0,1.5,0), mar=c(0.75,0,0,0), lwd=0.2,
+    col="gray30", col.axis="gray30", fg="gray30")
+
+cols = colorRampPalette(brewer.pal(9,"YlOrRd"))(150)[1:100]
+plot(envVariables[[16]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Air temperature", side=3, line=-2, cex=1, col="gray30")
+mtext("in Fall", side=3, line=-3.8, cex=1, col="gray30")
+mtext("near surface [°C]", side=3, line=-5.6, cex=1, col="gray30")
+plot(envVariables[[16]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.05,0.08), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+
+cols = colorRampPalette(brewer.pal(9,"YlOrRd"))(150)[1:100]
+plot(envVariables[[17]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Air temperature", side=3, line=-2, cex=1, col="gray30")
+mtext("in Spring", side=3, line=-3.8, cex=1, col="gray30")
+mtext("near surface [°C]", side=3, line=-5.6, cex=1, col="gray30")
+plot(envVariables[[17]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.05,0.08), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+
+cols = colorRampPalette(brewer.pal(9,"YlOrRd"))(150)[1:100]
+plot(envVariables[[18]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Air temperature", side=3, line=-2, cex=1, col="gray30")
+mtext("in Summer", side=3, line=-3.8, cex=1, col="gray30")
+mtext("near surface [°C]", side=3, line=-5.6, cex=1, col="gray30")
+plot(envVariables[[18]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.05,0.08), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+
+
+cols = colorRampPalette(brewer.pal(9,"YlOrRd"))(150)[1:100]
+plot(envVariables[[19]], col=cols, ann=F, legend=F, axes=F, box=F)
+plot(europe, add=T, border="gray50", lwd=0.5)
+mtext("Air temperature", side=3, line=-2, cex=1, col="gray30")
+mtext("in Winter", side=3, line=-3.8, cex=1, col="gray30")
+mtext("near surface [°C]", side=3, line=-5.6, cex=1, col="gray30")
+plot(envVariables[[19]], col=cols, legend.only=T, add=T, legend.width=0.5, legend.shrink=0.3,
+     smallplot=c(0.10,0.80,0.05,0.08), adj=3, axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0,
+                                                             col.tick="gray30", tck=-0.9, col="gray30", col.axis="gray30", line=0, mgp=c(0,0.1,0)),
+     alpha=1, side=3, horizontal=T)
+
+
+
+
+
+
+# ===== 3. Entrainement de plusieurs modèles réplicats =====
+
+
+# ===== 3.1 Création du dataset de l'ensemble des données d'occurences géoréférencées =====
+records_Arbovirus = read.csv("Arbovirus_risk_mapping_simulated_dataset_2-1.csv", head=T)[,c("longitude","latitude")]
+
+template = envVariables[[1]]; template[!is.na(template[])] = 1 
+
+cells_Arbovirus = unique(raster::extract(template, records_Arbovirus, cellnumbers=T))[,"cells"]
+
+background = template
+background[cells_Arbovirus] = NA
+cells_background = which(!is.na(background[]))
+
+
+# ===== 3.2 Génération des dataframes pour l'analyse BRT répliquée =====
+
+number_of_replicates = 250
+
+
+dataframes = list()
+for (i in 1:number_of_replicates) {
+  presences = xyFromCell(template, cells_Arbovirus) 
+  cells_pseudo_absence = sample(cells_background, length(cells_Arbovirus), replace=F) 
+  pseudo_absences = xyFromCell(template, cells_pseudo_absence) 
+  data = rbind(cbind(rep(1,dim(presences)[1]),presences),
+               cbind(rep(0,dim(pseudo_absences)[1]),pseudo_absences)) 
+  colnames(data) = c("response","longitude", "latitude") 
+  data = cbind(data, raster::extract(stack(envVariables), data[,c(2:3)])) 
+  dataframes[[i]] = as.data.frame(data) 
+  if (i == 1) print(str(dataframes[[i]])) 
+}
+
+
+# ===== 3.3 Création d'un corrélogramme spatial =====
+
+par(oma=c(0,0,0,0), mar=c(2,2.2,0,0))
+for (i in 1:number_of_replicates) {
+  data = dataframes[[i]]
+  correlogram = ncf::correlog(data[,"longitude"], data[,"latitude"], data[,"response"],
+                              na.rm=T, increment=100, resamp=0, latlon=T)
+  if (i == 1) { 
+    plot(correlogram$mean.of.class, correlogram$correlation, ann=F, axes=F,
+         lwd=0.2, cex=0.5, col=NA, ylim=c(-1,1.03), xlim=c(250,5700))
+    abline(h=0, lwd=0.5, col=rgb(222,67,39,255,maxColorValue=255), lty=2)
+    axis(side=1, lwd.tick=0.2, cex.axis=0.7, lwd=0.2, tck=-0.01,
+         col.axis="gray30", mgp=c(0,0.00,0), at=seq(0,9000,1000))
+    axis(side=2, lwd.tick=0.2, cex.axis=0.7, lwd=0.2, tck=-0.01,
+         col.axis="gray30", mgp=c(0,0.25,0), at=seq(-1.5,3,0.5))
+    title(xlab="Distance (km)", cex.lab=0.9, mgp=c(0.9,0,0), col.lab="gray30")
+    title(ylab="Correlation", cex.lab=0.9, mgp=c(1.3,0,0), col.lab="gray30")
+  }
+  lines(correlogram$mean.of.class[-1], correlogram$correlation[-1], lwd=0.1, col="gray60")
+
+}
+
+
+
+
+# ===== 3.4 Entrainement des modèles de niche écologique =====
+
+#===== 3.4.1 Paramètres du BRT =====
+theRanges = c(1500,1500)*1000 
+gbm.x = envVariableNames 
+gbm.y = "response" 
+offset = NULL; tree.complexity = 5 
+learning.rate = 0.005 
+bag.fraction = 0.80 
+site.weights = rep(1, dim(data)[1]) 
+var.monotone = rep(0, length(gbm.x)) 
+n.folds = 5 
+prev.stratify = TRUE 
+family = "bernoulli" 
+n.trees = 10 
+step.size = 5 
+max.trees = 10000
+tolerance.method = "auto" 
+tolerance = 0.001 
+plot.main = TRUE 
+plot.folds = FALSE 
+verbose = TRUE 
+silent = FALSE 
+keep.fold.models = FALSE 
+keep.fold.vector = FALSE 
+keep.fold.fit = FALSE 
+
+
+# ===== 3.4.2 Lancement des réplicats du BRT ===== 
+brt_models = list() 
+predictions = list() 
+AUCs = matrix(nrow=number_of_replicates, ncol=1)
+colnames(AUCs) = c("AUC")
+for (i in 1:number_of_replicates) {
+  data = dataframes[[i]] 
+  spdf = SpatialPointsDataFrame(data[c("longitude","latitude")],
+                                data[,c("response",envVariableNames)],
+                                proj4string=crs(template))
+  myblocks = cv_spatial(spdf, column="response", k=n.folds, size=theRanges[1], selection="random")
+  fold.vector = myblocks$folds_ids 
+  
+
+  n.trees = 10
+  
+  brt_models[[i]] = gbm.step(data, gbm.x, gbm.y, offset, fold.vector, tree.complexity,
+                             learning.rate, bag.fraction, site.weights, var.monotone,
+                             n.folds, prev.stratify, family, n.trees, step.size,
+                             max.trees, tolerance.method, tolerance, plot.main,
+                             plot.folds, verbose, silent, keep.fold.models,
+                             keep.fold.vector, keep.fold.fit) 
+  AUCs[i,"AUC"] = brt_models[[i]]$cv.statistics$discrimination.mean 
+  dataframe = as.data.frame(stack(envVariables))
+  dataframe = dataframe[which(!is.na(rowMeans(dataframe))),]
+  n.trees = brt_models[[i]]$gbm.call$best.trees 
+  type = "response"; single.tree = FALSE
+  prediction = predict.gbm(brt_models[[i]], dataframe, n.trees, type, single.tree)
+  buffer = envVariables[[1]]; buffer[!is.na(buffer[])] = prediction; predictions[[i]] = buffer
+  
+}
+write.csv(AUCs, "AUC_value_replicates.csv", row.names=F, quote=F) 
+saveRDS(brt_models, "BRT_model_replicates.rds")
+saveRDS(predictions, "BRT_model_predictions.rds")
+
+
+
+# ===== 3.4.3 Lancement des réplicats du BRT ===== 
+
+hist(AUCs[,1],breaks = 20,col = "steelblue",border = "white",main = "AUC Histogram", 
+     xlab = "AUC",ylab = "Number of replicates",xlim = c(0.5, 1))
+abline(v = mean(AUCs[,1]), col = "red", lwd = 1.5, lty = 2)
+
+
+# ===== 3.5.1 Modélisation des cartographies de risque ===== 
+
+predictions = readRDS("BRT_model_predictions.rds")
+
+par(mfrow=c(1,4), oma=c(0,0,0,0), mar=c(0.75,0,0,0), lwd=0.2, col="gray30",
+    col.axis="gray30", fg="gray30") 
+
+cols = rev(colorRampPalette(brewer.pal(9,"RdYlBu"))(131)[11:121]) 
+for (i in 1:4) { 
+  plot(predictions[[i]], col=cols, ann=F, legend=F, axes=F, box=F) 
+  plot(europe, add=T, border="gray50", lwd=0.5) 
+  mtext("Ecological suitability", side=3, line=-2, cex=1, col="gray30")
+  mtext(paste0("(BRT replicate ",i,")"), side=3, line=-3.8, cex=1, col="gray30")
+  plot(predictions[[i]], col=cols, legend.only=T, add=T, legend.width=0.5,
+       legend.shrink=0.3, smallplot=c(0.10,0.80,0.09,0.12), adj=3,
+       axis.args=list(cex.axis=0.65, lwd=0, lwd.tick=0.2, col.tick="gray30",
+                      tck=0, col="gray30", col.axis="gray30", line=0,
+                      mgp=c(0,0.1,0)), alpha=1, side=3, horizontal=T) 
+}
+
+
+# ===== 3.5.2 Modélisation de la moyenne des cartographies de risque ===== 
+
+# Transformer la liste en RasterStack
+pred_stack <- stack(predictions)
+
+# Calculer la moyenne pixel par pixel
+pred_mean <- calc(pred_stack, fun = mean, na.rm = TRUE)
+
+# Afficher
+par(mfrow=c(1,1), oma=c(0,0,0,0), mar=c(3,0,3,0), lwd=0.2, col="gray30",
+    col.axis="gray30", fg="gray30") 
+
+plot(pred_mean, col=cols, ann=F, legend=F, axes=F, box=F) 
+plot(europe, add=T, border="gray50", lwd=0.5) 
+mtext("Ecological suitability", side=3, line=1.5, cex=1, col="gray30")
+mtext(paste0("(Mean of the 4 BRT replicates)"), side=3, line=0, cex=1, col="gray30")
+plot(pred_mean, col=cols, legend.only=T, add=T, legend.width=0.5,
+     legend.shrink=0.1, smallplot=c(0.10,0.80,0.09,0.12), adj=3,
+     axis.args=list(cex.axis=0.65, lwd=0, lwd.tick=0.2, col.tick="gray30",
+                    tck=0, col="gray30", col.axis="gray30", line=0,
+                    mgp=c(0,0.1,0)), alpha=1, side=3, horizontal=T) 
+
+
+
+
+# ===== 4. Evaluation de la performance prédictive des modèle de niche écologique =====
+
+
+# ===== 4.1 Moyenne et étendue de AUC ===== 
+
+AUCs = read.csv("AUC_value_replicates.csv", head=T)
+cat("Mean AUC = ",round(mean(AUCs[,1]),2),
+    ", AUC range = [",round(min(AUCs),2),", ",round(max(AUCs),2),"]","\n",sep="")
+
+
+# ===== 4.2 Moyenne et étendue de l'index de Sorensen de prévalence-pseudoabsence calibrée =====
+
+brt_models = readRDS("BRT_model_replicates.rds") 
+SI_ppcs = rep(NA, length(brt_models)) 
+thresholds = rep(NA, length(brt_models)) 
+
+for (i in 1:length(brt_models)) {
+  tmp = matrix(nrow=101, ncol=2) 
+  colnames(tmp) = c("threshold","SIppc"); tmp[,"threshold"] = seq(0,1,0.01)
+  dataframe = brt_models[[i]]$gbm.call$dataframe
+  responses = dataframe$response; data = dataframe[,4:dim(dataframe)[2]]
+  n.trees = brt_models[[i]]$gbm.call$best.trees; type = "response"; single.tree = FALSE
+  prediction = predict.gbm(brt_models[[i]], data, n.trees, type, single.tree)
+  P = sum(responses==1) 
+  A = sum(responses==0) 
+  prev = P/(P+A) 
+  x = (P/A)*((1-prev)/prev); SI_ppc = 0 
+  for (threshold in seq(0,1,0.01)) {
+    TP = length(which((responses==1)&(prediction>=threshold))) 
+    FN = length(which((responses==1)&(prediction<threshold))) 
+    FP_pa = length(which((responses==0)&(prediction>=threshold))) 
+    SI_ppc_tmp = (2*TP)/((2*TP)+(x*FP_pa)+(FN)) 
+    tmp[which(tmp[,"threshold"]==threshold),"SIppc"] = SI_ppc_tmp
+    if (SI_ppc < SI_ppc_tmp) { 
+      SI_ppc = SI_ppc_tmp; optimised_threshold = threshold
+    }
+  }
+  SI_ppcs[i] = SI_ppc; thresholds[i] = optimised_threshold 
+}
+mean_SIppc = round(mean(SI_ppcs),2); mean_thres = round(mean(thresholds),2) 
+min_SIppc = round(min(SI_ppcs),2); min_thres = round(min(thresholds),2) 
+max_SIppc = round(max(SI_ppcs),2); max_thres = round(max(thresholds),2)
+cat("Mean SIppc = ",mean_SIppc,", SIppc range = [",min_SIppc,", ",max_SIppc,"]","\n",sep="")
+
+
+
+# ===== 5. Analyse de la contribution des variables environnementales =====
+
+
+# ===== 5.1 Récupération des valeurs d'importance relative des objets du modèle BRT =====
+relative_importances = matrix(nrow=length(brt_models), ncol=length(envVariables))
+colnames(relative_importances) = envVariableNames
+brt_models = readRDS("BRT_model_replicates.rds")
+for (i in 1:length(brt_models)) {
+  for (j in 1:length(envVariables)) {
+    relative_importances[i,j] = summary(brt_models[[i]])[names(envVariables[[j]]),"rel.inf"]
+  }
+}
+write.table(relative_importances, "Relative_importances.csv", row.names=F, quote=F, sep=",")
+  
+relative_importances = read.csv("Relative_importances.csv", head=T)
+RI_summary = matrix(nrow=length(envVariables), ncol=1)
+rownames(RI_summary) = envVariableNames; colnames(RI_summary) = c("mean RI [95% CI]")
+for (i in 1:dim(relative_importances)[2]) {
+  mean_RI = round(mean(relative_importances[,i]),1)
+  ci95_RI = round(t.test(relative_importances[,i])$conf.int[1:2],1)
+  RI_summary[i,1] = paste0(mean_RI," [",ci95_RI[1],", ",ci95_RI[2],"]")
+}
+RI_summary
+  
+  
+mean_RI = apply(relative_importances, 2, mean)
+mean_RI_sorted = sort(mean_RI, decreasing = TRUE)
+
+par(mar = c(4, 12, 1, 1))
+barplot(main = "Mean relative importances of the environmental factors",rev(mean_RI_sorted),
+        horiz = TRUE,
+        las = 1,
+        cex.names = 0.7,
+        xlab = "Mean relative importance (%)",
+        col = "steelblue",
+        border = NA)
+
+
+
+# ===== 6. Visualisation des courbes de réponses associées à chaque variable =====
+
+
+# ===== 6.1 Génération d'une matrice des variables environnementales et de leur valeurs médian, max et min pour chaque facteur =====
+
+brt_models = readRDS("BRT_model_replicates.rds") 
+sp = SpatialPoints(dataframes[[1]][which(dataframes[[1]][,"response"]==1),2:3])
+envVariableValues = matrix(nrow=3, ncol=length(envVariables)) 
+colnames(envVariableValues) = envVariableNames
+row.names(envVariableValues) = c("median","minV","maxV")
+for (i in 1:length(envVariables)) {
+  points = rasterize(sp, envVariables[[i]])
+  rast = envVariables[[i]]; rast[is.na(points)] = NA
+  minV = min(rast[], na.rm=T); maxV = max(rast[], na.rm=T)
+  envVariableValues[,i] = cbind(median(rast[],na.rm=T), minV, maxV)
+}
+
+
+# ===== 6.2 Génération des courbes de réponses =====
+
+# ===== 6.2.1 Précipitation =====
+par(mfrow=c(1,4), oma=c(0,0,0,0), mar=c(2,1.2,0.5,0.5), lwd=0.2, col="gray30")
+envVariableTitles = c("Precipitation in Fall","Precipitation in Spring","Precipitation in Summer",
+                      "Precipitation in Winter","Primary forest areas",
+                      "Primary non forest areas","Secondary forest areas",
+                      "Secondary non forest areas","Croplands all categories",
+                      "Managed pasture and rangeland","Human pop density log10",
+                      "Relative humidity in Fall","Relative humidity in Spring","Relative humidity in Summer","Relative humidity in Winter",
+                      "Temperaturein Fall","Temperature in Spring","Temperature in Summer","Temperaturein Winter")
+
+
+
+for (i in c(1,2,3,4)) { 
+valuesInterval = (envVariableValues["maxV",i]-envVariableValues["minV",i])/100 
+dataframe = data.frame(matrix(nrow=length(seq(envVariableValues["minV",i],
+envVariableValues["maxV",i],valuesInterval)),
+ncol=length(envVariables)))
+colnames(dataframe) = envVariableNames
+for (j in 1:length(envVariables)) {
+interval = (envVariableValues["maxV",j]-envVariableValues["minV",j])/100
+if (i == j) {
+dataframe[,envVariableNames[j]] = seq(envVariableValues["minV",j],
+envVariableValues["maxV",j],interval)
+} else {
+dataframe[,envVariableNames[j]] = rep(envVariableValues["median",j],
+dim(dataframe)[1])
+}
+}
+predictions = list() 
+for (j in 1:length(brt_models)) {
+n.trees = brt_models[[j]]$gbm.call$best.trees; type = "response"; single.tree = FALSE
+prediction = predict.gbm(brt_models[[j]], newdata=dataframe, n.trees, type, single.tree)
+if (j == 1) { 
+minX = min(dataframe[,envVariableNames[i]])
+maxX = max(dataframe[,envVariableNames[i]])
+} else {
+if (minX > min(dataframe[,envVariableNames[i]])) {
+minX = min(dataframe[,envVariableNames[i]])
+}
+if (maxX < max(dataframe[,envVariableNames[i]])) {
+maxX = max(ddataframe[,envVariableNames[i]])
+}
+}
+predictions[[j]] = prediction
+}
+col = rgb(222,67,39,255,maxColorValue=255) 
+for (j in 1:length(brt_models)) {
+if (j == 1) {
+plot(dataframe[,envVariableNames[i]], predictions[[j]], col=col, ann=F,
+axes=F, lwd=0.2, type="l", xlim=c(minX,maxX), ylim=c(0,1))
+} else {
+lines(dataframe[,envVariableNames[i]], predictions[[j]], col=col, lwd=0.2)
+}
+}
+axis(side=1, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.0040, col.axis="gray30", mgp=c(0,0.15,0))
+axis(side=2, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.0040, col.axis="gray30", mgp=c(0,0.4,0))
+title(xlab=envVariableTitles[i], cex.lab=0.9, mgp=c(1.0,0,0), col.lab="gray30")
+box(lwd=0.2, col="gray30")
+}
+
+
+
+
+# ===== 6.2.2 Forêt =====
+par(mfrow=c(1,2), oma=c(0,0,0,0), mar=c(2,1.2,0.5,0.5), lwd=0.2, col="gray30")
+
+for (i in c(5,7)) { 
+  valuesInterval = (envVariableValues["maxV",i]-envVariableValues["minV",i])/100 
+  dataframe = data.frame(matrix(nrow=length(seq(envVariableValues["minV",i],
+                                                envVariableValues["maxV",i],valuesInterval)),
+                                ncol=length(envVariables)))
+  colnames(dataframe) = envVariableNames
+  for (j in 1:length(envVariables)) {
+    interval = (envVariableValues["maxV",j]-envVariableValues["minV",j])/100
+    if (i == j) {
+      dataframe[,envVariableNames[j]] = seq(envVariableValues["minV",j],
+                                            envVariableValues["maxV",j],interval)
+    } else {
+      dataframe[,envVariableNames[j]] = rep(envVariableValues["median",j],
+                                            dim(dataframe)[1])
+    }
+  }
+  predictions = list() 
+  for (j in 1:length(brt_models)) {
+    n.trees = brt_models[[j]]$gbm.call$best.trees; type = "response"; single.tree = FALSE
+    prediction = predict.gbm(brt_models[[j]], newdata=dataframe, n.trees, type, single.tree)
+    if (j == 1) { 
+      minX = min(dataframe[,envVariableNames[i]])
+      maxX = max(dataframe[,envVariableNames[i]])
+    } else {
+      if (minX > min(dataframe[,envVariableNames[i]])) {
+        minX = min(dataframe[,envVariableNames[i]])
+      }
+      if (maxX < max(dataframe[,envVariableNames[i]])) {
+        maxX = max(ddataframe[,envVariableNames[i]])
+      }
+    }
+    predictions[[j]] = prediction
+  }
+  col = rgb(222,67,39,255,maxColorValue=255) 
+  for (j in 1:length(brt_models)) {
+    if (j == 1) {
+      plot(dataframe[,envVariableNames[i]], predictions[[j]], col=col, ann=F,
+           axes=F, lwd=0.2, type="l", xlim=c(minX,maxX), ylim=c(0,1))
+    } else {
+      lines(dataframe[,envVariableNames[i]], predictions[[j]], col=col, lwd=0.2)
+    }
+  }
+  axis(side=1, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.0040, col.axis="gray30", mgp=c(0,0.15,0))
+  axis(side=2, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.0040, col.axis="gray30", mgp=c(0,0.4,0))
+  title(xlab=envVariableTitles[i], cex.lab=0.9, mgp=c(1.0,0,0), col.lab="gray30")
+  box(lwd=0.2, col="gray30")
+}
+
+
+
+# ===== 6.2.3 Terres cultivées, pâturages, prairies et population humaine =====
+par(mfrow=c(1,3), oma=c(0,0,0,0), mar=c(2,1.2,0.5,0.5), lwd=0.2, col="gray30")
+
+
+for (i in c(9,10,11)) { 
+  valuesInterval = (envVariableValues["maxV",i]-envVariableValues["minV",i])/100 
+  dataframe = data.frame(matrix(nrow=length(seq(envVariableValues["minV",i],
+                                                envVariableValues["maxV",i],valuesInterval)),
+                                ncol=length(envVariables)))
+  colnames(dataframe) = envVariableNames
+  for (j in 1:length(envVariables)) {
+    interval = (envVariableValues["maxV",j]-envVariableValues["minV",j])/100
+    if (i == j) {
+      dataframe[,envVariableNames[j]] = seq(envVariableValues["minV",j],
+                                            envVariableValues["maxV",j],interval)
+    } else {
+      dataframe[,envVariableNames[j]] = rep(envVariableValues["median",j],
+                                            dim(dataframe)[1])
+    }
+  }
+  predictions = list() 
+  for (j in 1:length(brt_models)) {
+    n.trees = brt_models[[j]]$gbm.call$best.trees; type = "response"; single.tree = FALSE
+    prediction = predict.gbm(brt_models[[j]], newdata=dataframe, n.trees, type, single.tree)
+    if (j == 1) { 
+      minX = min(dataframe[,envVariableNames[i]])
+      maxX = max(dataframe[,envVariableNames[i]])
+    } else {
+      if (minX > min(dataframe[,envVariableNames[i]])) {
+        minX = min(dataframe[,envVariableNames[i]])
+      }
+      if (maxX < max(dataframe[,envVariableNames[i]])) {
+        maxX = max(ddataframe[,envVariableNames[i]])
+      }
+    }
+    predictions[[j]] = prediction
+  }
+  col = rgb(222,67,39,255,maxColorValue=255) 
+  for (j in 1:length(brt_models)) {
+    if (j == 1) {
+      plot(dataframe[,envVariableNames[i]], predictions[[j]], col=col, ann=F,
+           axes=F, lwd=0.2, type="l", xlim=c(minX,maxX), ylim=c(0,1))
+    } else {
+      lines(dataframe[,envVariableNames[i]], predictions[[j]], col=col, lwd=0.2)
+    }
+  }
+  axis(side=1, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.0040, col.axis="gray30", mgp=c(0,0.15,0))
+  axis(side=2, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.0040, col.axis="gray30", mgp=c(0,0.4,0))
+  title(xlab=envVariableTitles[i], cex.lab=0.9, mgp=c(1.0,0,0), col.lab="gray30")
+  box(lwd=0.2, col="gray30")
+}
+
+
+
+# ===== 6.2.4 Humidité =====
+par(mfrow=c(1,4), oma=c(0,0,0,0), mar=c(2,1.2,0.5,0.5), lwd=0.2, col="gray30")
+
+
+for (i in c(12,13,14,15)) { 
+  valuesInterval = (envVariableValues["maxV",i]-envVariableValues["minV",i])/100 
+  dataframe = data.frame(matrix(nrow=length(seq(envVariableValues["minV",i],
+                                                envVariableValues["maxV",i],valuesInterval)),
+                                ncol=length(envVariables)))
+  colnames(dataframe) = envVariableNames
+  for (j in 1:length(envVariables)) {
+    interval = (envVariableValues["maxV",j]-envVariableValues["minV",j])/100
+    if (i == j) {
+      dataframe[,envVariableNames[j]] = seq(envVariableValues["minV",j],
+                                            envVariableValues["maxV",j],interval)
+    } else {
+      dataframe[,envVariableNames[j]] = rep(envVariableValues["median",j],
+                                            dim(dataframe)[1])
+    }
+  }
+  predictions = list() 
+  for (j in 1:length(brt_models)) {
+    n.trees = brt_models[[j]]$gbm.call$best.trees; type = "response"; single.tree = FALSE
+    prediction = predict.gbm(brt_models[[j]], newdata=dataframe, n.trees, type, single.tree)
+    if (j == 1) { 
+      minX = min(dataframe[,envVariableNames[i]])
+      maxX = max(dataframe[,envVariableNames[i]])
+    } else {
+      if (minX > min(dataframe[,envVariableNames[i]])) {
+        minX = min(dataframe[,envVariableNames[i]])
+      }
+      if (maxX < max(dataframe[,envVariableNames[i]])) {
+        maxX = max(ddataframe[,envVariableNames[i]])
+      }
+    }
+    predictions[[j]] = prediction
+  }
+  col = rgb(222,67,39,255,maxColorValue=255) 
+  for (j in 1:length(brt_models)) {
+    if (j == 1) {
+      plot(dataframe[,envVariableNames[i]], predictions[[j]], col=col, ann=F,
+           axes=F, lwd=0.2, type="l", xlim=c(minX,maxX), ylim=c(0,1))
+    } else {
+      lines(dataframe[,envVariableNames[i]], predictions[[j]], col=col, lwd=0.2)
+    }
+  }
+  axis(side=1, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.0040, col.axis="gray30", mgp=c(0,0.15,0))
+  axis(side=2, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.0040, col.axis="gray30", mgp=c(0,0.4,0))
+  title(xlab=envVariableTitles[i], cex.lab=0.9, mgp=c(1.0,0,0), col.lab="gray30")
+  box(lwd=0.2, col="gray30")
+}
+
+
+# ===== 6.2.4 Température =====
+par(mfrow=c(1,4), oma=c(0,0,0,0), mar=c(2,1.2,0.5,0.5), lwd=0.2, col="gray30")
+
+
+for (i in c(16,17,18,19)) { 
+  valuesInterval = (envVariableValues["maxV",i]-envVariableValues["minV",i])/100 
+  dataframe = data.frame(matrix(nrow=length(seq(envVariableValues["minV",i],
+                                                envVariableValues["maxV",i],valuesInterval)),
+                                ncol=length(envVariables)))
+  colnames(dataframe) = envVariableNames
+  for (j in 1:length(envVariables)) {
+    interval = (envVariableValues["maxV",j]-envVariableValues["minV",j])/100
+    if (i == j) {
+      dataframe[,envVariableNames[j]] = seq(envVariableValues["minV",j],
+                                            envVariableValues["maxV",j],interval)
+    } else {
+      dataframe[,envVariableNames[j]] = rep(envVariableValues["median",j],
+                                            dim(dataframe)[1])
+    }
+  }
+  predictions = list() 
+  for (j in 1:length(brt_models)) {
+    n.trees = brt_models[[j]]$gbm.call$best.trees; type = "response"; single.tree = FALSE
+    prediction = predict.gbm(brt_models[[j]], newdata=dataframe, n.trees, type, single.tree)
+    if (j == 1) { 
+      minX = min(dataframe[,envVariableNames[i]])
+      maxX = max(dataframe[,envVariableNames[i]])
+    } else {
+      if (minX > min(dataframe[,envVariableNames[i]])) {
+        minX = min(dataframe[,envVariableNames[i]])
+      }
+      if (maxX < max(dataframe[,envVariableNames[i]])) {
+        maxX = max(ddataframe[,envVariableNames[i]])
+      }
+    }
+    predictions[[j]] = prediction
+  }
+  col = rgb(222,67,39,255,maxColorValue=255) 
+  for (j in 1:length(brt_models)) {
+    if (j == 1) {
+      plot(dataframe[,envVariableNames[i]], predictions[[j]], col=col, ann=F,
+           axes=F, lwd=0.2, type="l", xlim=c(minX,maxX), ylim=c(0,1))
+    } else {
+      lines(dataframe[,envVariableNames[i]], predictions[[j]], col=col, lwd=0.2)
+    }
+  }
+  axis(side=1, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.0040, col.axis="gray30", mgp=c(0,0.15,0))
+  axis(side=2, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.0040, col.axis="gray30", mgp=c(0,0.4,0))
+  title(xlab=envVariableTitles[i], cex.lab=0.9, mgp=c(1.0,0,0), col.lab="gray30")
+  box(lwd=0.2, col="gray30")
+}
